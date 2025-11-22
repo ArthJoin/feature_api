@@ -36,9 +36,23 @@ services:
       - postgres
     environment:
       POSTGRES_DSN: postgres://feature_user:feature_password@feature-pg:5432/feature_store?sslmode=disable
-      PORT: "8080"
+      PORT: "9000"
+    ports:
+      - "9000:9000"
+    networks:
+      - feature-net
+
+  camunda:
+    image: camunda/camunda-bpm-platform:latest
+    container_name: camunda
     ports:
       - "8080:8080"
+    environment:
+      # опционально, но удобно
+      - CAMUNDA_BPM_HISTORY_LEVEL=full
+    # если нужен общий network с твоим сервисом:
+    volumes:
+      - ./camunda-data:/camunda/configuration/resources
     networks:
       - feature-net
 
