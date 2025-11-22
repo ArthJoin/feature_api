@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: feature-pg
+    environment:
+      POSTGRES_DB: features
+      POSTGRES_USER: feature_user
+      POSTGRES_PASSWORD: feature_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+      - ./postgres/dump:/var/lib/postgresql/dump
+    networks:
+      - feature-net
+
+  # duckdb:
+  #   image: ghcr.io/duckdb/duckdb:latest
+  #   container_name: ml-duckdb
+  #   working_dir: /data
+  #   volumes:
+  #     - ./duckdb/data:/data
+  #   # DuckDB здесь как "хранилище" для оффлайн-аналитики/ML.
+  #   # Контейнер просто живёт, чтобы можно было в него заходить.
+  #   command: ["tail", "-f", "/dev/null"]
+  #   networks:
+  #     - feature-net
+
+  api:
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+    container_name: feature-api
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_DSN: postgres://feature_user:feature_password@feature-pg:5432/feature_store?sslmode=disable
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    networks:
+      - feature-net
+
+networks:
+  feature-net:
+    driver: bridge
