@@ -14,23 +14,22 @@ services:
       - ./postgres/dump:/var/lib/postgresql/dump
     networks:
       - feature-net
-
+  
+  # Если понадобится DuckDB для аналитических запросов
   # duckdb:
   #   image: ghcr.io/duckdb/duckdb:latest
   #   container_name: ml-duckdb
   #   working_dir: /data
   #   volumes:
   #     - ./duckdb/data:/data
-  #   # DuckDB здесь как "хранилище" для оффлайн-аналитики/ML.
-  #   # Контейнер просто живёт, чтобы можно было в него заходить.
   #   command: ["tail", "-f", "/dev/null"]
   #   networks:
   #     - feature-net
 
   api:
     build:
-      context: ./services
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/feature-service/Dockerfile 
     container_name: feature-api
     depends_on:
       - postgres
@@ -48,11 +47,96 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # опционально, но удобно
       - CAMUNDA_BPM_HISTORY_LEVEL=full
-    # если нужен общий network с твоим сервисом:
+    depends_on:
+      - api
     volumes:
       - ./camunda-data:/camunda/configuration/resources
+    networks:
+      - feature-net
+
+  ml-api:
+    build:
+      context: .
+      dockerfile: docker/ml-serve/Dockerfile 
+    ports:
+      - "81:81"
+    env_file:
+      - .env
+    networks:
+      - feature-net
+
+  # Включить и общаться в Camunda через Nginx, если сервисов fastapi станет больше
+  # gateway:
+  #   build:
+  #     context: docker/nginx
+  #     dockerfile: Dockerfile
+  #   restart: always
+  #   volumes: 
+  #     - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./docker/nginx/config:/etc/nginx/conf.d:ro
+  #     - static_file:/var/www/static:ro
+  #   ports: 
+  #     - "80:80"
+  #   depends_on: 
+  #     - ml-api
+  #     - api
+  #   networks:
+  #     - feature-net
+
+
+  # MLflow setup
+  mlflow-db:
+    image: postgres:16
+    container_name: mlflow-db
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow_pass
+      POSTGRES_DB: mlflow
+    volumes:
+      - ./mlflow/pg_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - feature-net
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":45369"
+    environment:
+      MINIO_ROOT_USER: mlflow_access
+      MINIO_ROOT_PASSWORD: mlflow_secret
+    volumes:
+      - ./mlflow/minio_data:/data
+    ports:
+      - "9001:9000"
+      - "45369:45369"
+    networks:
+      - feature-net
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow/Dockerfile 
+    depends_on:
+      - mlflow-db
+      - minio
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: mlflow_access
+      AWS_SECRET_ACCESS_KEY: mlflow_secret
+      MLFLOW_SERVER_ALLOWED_HOSTS: "*"
+      MLFLOW_ALLOWED_HOSTS: "*"
+      MLFLOW_ENABLE_DNS_REBIND_PROTECTION: "false"
+    command: >
+      mlflow server
+        --serve-artifacts
+        --default-artifact-root s3://mlflow/
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri postgresql+psycopg2://mlflow:mlflow_pass@mlflow-db:5432/mlflow
+    ports:
+      - "5000:5000"
     networks:
       - feature-net
 

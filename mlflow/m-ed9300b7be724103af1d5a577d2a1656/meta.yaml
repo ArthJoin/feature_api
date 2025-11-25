@@ -1,0 +1,10 @@
+artifact_location: file:///C:/Users/user/Desktop/Master%27s%20degree%202nd%20year/%D0%A5%D0%B0%D0%BA%D0%B0%D1%82%D0%BE%D0%BD/mlruns/882048109853097535/models/m-ed9300b7be724103af1d5a577d2a1656/artifacts
+creation_timestamp: 1763914114466
+experiment_id: '882048109853097535'
+last_updated_timestamp: 1763914118129
+model_id: m-ed9300b7be724103af1d5a577d2a1656
+model_type: null
+name: model
+source_run_id: 3bb52b5229c042ea998bbde2d5e23964
+status: 2
+status_message: null
