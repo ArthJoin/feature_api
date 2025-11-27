@@ -44,7 +44,6 @@ docker-compose.override.yml
 *.log
  
 # Model dumps
-mlflow/
 mlflow/pg_data/*
 mlruns/
 **/mlruns/
@@ -52,6 +51,7 @@ mlflow/*
 !docker/mlflow/Dockerfile
 !mlflow/
 !mlflow/*.py
+!mlflow/pg_data/
 
 
 # CatBoost models
