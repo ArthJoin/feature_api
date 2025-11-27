@@ -4,8 +4,8 @@
     <bpmn:startEvent id="StartEvent_1" name="Поступление Транзакции&#10;">
       <bpmn:outgoing>Flow_0f4cllc</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:exclusiveGateway id="Gateway_1dbu8yg" name="Decision" default="Flow_1c9c6v4">
-      <bpmn:incoming>Flow_0pei4zb</bpmn:incoming>
+    <bpmn:exclusiveGateway id="Gateway_1dbu8yg" name="Decision">
+      <bpmn:incoming>Flow_1b7v37l</bpmn:incoming>
       <bpmn:outgoing>Flow_04quij2</bpmn:outgoing>
       <bpmn:outgoing>Flow_142l2oy</bpmn:outgoing>
       <bpmn:outgoing>Flow_1c9c6v4</bpmn:outgoing>
@@ -19,13 +19,14 @@
     <bpmn:endEvent id="Event_0pnxjvp" name="Approved">
       <bpmn:incoming>Flow_175i9vv</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:serviceTask id="Activity_0sju9zi" name="Feature Store">
+    <bpmn:serviceTask id="Activity_0sju9zi" name="Feature Store" camunda:asyncBefore="true">
       <bpmn:extensionElements>
         <camunda:connector>
           <camunda:inputOutput>
             <camunda:inputParameter name="method">POST</camunda:inputParameter>
             <camunda:inputParameter name="payload">
-              <camunda:script scriptFormat="JavaScript">JSON.stringify({
+              <camunda:script scriptFormat="JavaScript">
+JSON.stringify({
   cst_dim_id: execution.getVariable("cst_dim_id"),
   transdate: execution.getVariable("transdate"),
   transdatetime: execution.getVariable("transdatetime"),
@@ -33,12 +34,12 @@
   docno: execution.getVariable("docno"),
   direction: execution.getVariable("direction"),
   target: execution.getVariable("target")
-})</camunda:script>
+})
+              </camunda:script>
             </camunda:inputParameter>
             <camunda:inputParameter name="url">http://api:9000/features</camunda:inputParameter>
             <camunda:outputParameter name="features">
-              <camunda:script scriptFormat="JavaScript">var body = JSON.parse(response);
-JSON.stringify(body.features[0]);</camunda:script>
+              <camunda:script scriptFormat="JavaScript">response</camunda:script>
             </camunda:outputParameter>
           </camunda:inputOutput>
           <camunda:connectorId>http-connector</camunda:connectorId>
@@ -47,10 +48,51 @@ JSON.stringify(body.features[0]);</camunda:script>
       <bpmn:incoming>Flow_0f4cllc</bpmn:incoming>
       <bpmn:outgoing>Flow_1401e32</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="Activity_14jp7h2" name="ML Scoring" camunda:type="external" camunda:topic="ml-scoring">
-      <bpmn:extensionElements />
+    <bpmn:serviceTask id="Activity_14jp7h2" name="ML Scoring">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">http://ml-api:81/api/v1/score</camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">POST</camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="JavaScript">
+                var fsResp = JSON.parse(execution.getVariable("features"));
+
+                var feats = fsResp.features || fsResp;
+
+                JSON.stringify({
+                  features: feats
+                });
+              </camunda:script>
+            </camunda:inputParameter>
+            <camunda:outputParameter name="ml_response_raw">
+              <camunda:script scriptFormat="JavaScript">response</camunda:script>
+            </camunda:outputParameter>
+            <camunda:outputParameter name="decision">
+            <camunda:script scriptFormat="JavaScript">
+              var resp = JSON.parse(response);
+
+              // безопасно достаём prediction
+              var pred = resp.results.fraud_detector_s3.prediction[0];
+
+              if (pred === 1) {
+                "APPROVE";
+              } else {
+                "DECLINE";
+              }
+            </camunda:script>
+          </camunda:outputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_1401e32</bpmn:incoming>
-      <bpmn:outgoing>Flow_0pei4zb</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1b7v37l</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:serviceTask id="Activity_12o6h6k" name="Approve" camunda:type="external" camunda:topic="approve">
       <bpmn:incoming>Flow_04quij2</bpmn:incoming>
@@ -66,20 +108,20 @@ JSON.stringify(body.features[0]);</camunda:script>
       <bpmn:outgoing>Flow_1mq1tdc</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:sequenceFlow id="Flow_0f4cllc" sourceRef="StartEvent_1" targetRef="Activity_0sju9zi" />
-    <bpmn:sequenceFlow id="Flow_0pei4zb" sourceRef="Activity_14jp7h2" targetRef="Gateway_1dbu8yg" />
     <bpmn:sequenceFlow id="Flow_04quij2" sourceRef="Gateway_1dbu8yg" targetRef="Activity_12o6h6k">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fraudDecision == 'APPROVE'}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == "APPROVE"}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_142l2oy" sourceRef="Gateway_1dbu8yg" targetRef="Activity_1v6zdjf">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fraudDecision == 'REVIEW'}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == "REVIEW"}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_1c9c6v4" sourceRef="Gateway_1dbu8yg" targetRef="Activity_0bgmf0o">
-      <bpmn:extensionElements />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == "DECLINE"}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_1mq1tdc" sourceRef="Activity_0bgmf0o" targetRef="Event_0z3o1nf" />
     <bpmn:sequenceFlow id="Flow_1y82pwh" sourceRef="Activity_1v6zdjf" targetRef="Event_1774us1" />
     <bpmn:sequenceFlow id="Flow_175i9vv" sourceRef="Activity_12o6h6k" targetRef="Event_0pnxjvp" />
     <bpmn:sequenceFlow id="Flow_1401e32" sourceRef="Activity_0sju9zi" targetRef="Activity_14jp7h2" />
+    <bpmn:sequenceFlow id="Flow_1b7v37l" sourceRef="Activity_14jp7h2" targetRef="Gateway_1dbu8yg" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_16ugzyw">
@@ -132,14 +174,6 @@ JSON.stringify(body.features[0]);</camunda:script>
         <di:waypoint x="215" y="237" />
         <di:waypoint x="270" y="237" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1401e32_di" bpmnElement="Flow_1401e32">
-        <di:waypoint x="370" y="237" />
-        <di:waypoint x="430" y="237" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0pei4zb_di" bpmnElement="Flow_0pei4zb">
-        <di:waypoint x="530" y="237" />
-        <di:waypoint x="595" y="237" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_04quij2_di" bpmnElement="Flow_04quij2">
         <di:waypoint x="620" y="212" />
         <di:waypoint x="620" y="120" />
@@ -168,6 +202,14 @@ JSON.stringify(body.features[0]);</camunda:script>
       <bpmndi:BPMNEdge id="Flow_175i9vv_di" bpmnElement="Flow_175i9vv">
         <di:waypoint x="810" y="120" />
         <di:waypoint x="882" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1401e32_di" bpmnElement="Flow_1401e32">
+        <di:waypoint x="370" y="237" />
+        <di:waypoint x="430" y="237" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1b7v37l_di" bpmnElement="Flow_1b7v37l">
+        <di:waypoint x="530" y="237" />
+        <di:waypoint x="595" y="237" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

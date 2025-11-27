@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"net/http"
 	"context"
+	postgres "feature_service/internal/repository"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
-	"feature_service/internal/repository"
 )
 
 type TransactionInput struct {
@@ -25,7 +26,6 @@ func Handler(c *gin.Context) {
 		return
 	}
 
-	// Получаем pg из контекста
 	pgRaw, ok := c.Get("pg")
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "no pg connection"})

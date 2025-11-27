@@ -14,17 +14,6 @@ services:
       - ./postgres/dump:/var/lib/postgresql/dump
     networks:
       - feature-net
-  
-  # Если понадобится DuckDB для аналитических запросов
-  # duckdb:
-  #   image: ghcr.io/duckdb/duckdb:latest
-  #   container_name: ml-duckdb
-  #   working_dir: /data
-  #   volumes:
-  #     - ./duckdb/data:/data
-  #   command: ["tail", "-f", "/dev/null"]
-  #   networks:
-  #     - feature-net
 
   api:
     build:
@@ -66,7 +55,7 @@ services:
     networks:
       - feature-net
 
-  # Включить и общаться в Camunda через Nginx, если сервисов fastapi станет больше
+  # Включить если сервисов станет больше и нужен шлюз
   # gateway:
   #   build:
   #     context: docker/nginx
@@ -84,8 +73,6 @@ services:
   #   networks:
   #     - feature-net
 
-
-  # MLflow setup
   mlflow-db:
     image: postgres:16
     container_name: mlflow-db
@@ -106,13 +93,14 @@ services:
     environment:
       MINIO_ROOT_USER: mlflow_access
       MINIO_ROOT_PASSWORD: mlflow_secret
-    volumes:
-      - ./mlflow/minio_data:/data
+      MINIO_BUCKETS: mlflow
     ports:
       - "9001:9000"
       - "45369:45369"
     networks:
       - feature-net
+    # mc version enable local/mlflow
+    # mc alias set local http://minio:9001 mlflow_access mlflow_secret
 
   mlflow:
     build:

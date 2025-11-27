@@ -4,38 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type Features struct {
-	TransDate                   *time.Time `json:"transdate"`
-	CstDimID                    *int64     `json:"cst_dim_id"`
-	MonthlyOSChanges            *int       `json:"monthly_os_changes"`
-	MonthlyPhoneModelChanges    *int       `json:"monthly_phone_model_changes"`
-	LastPhoneModelCategorical   *string    `json:"last_phone_model_categorical"`
-	LastOSCategorical           *string    `json:"last_os_categorical"`
-	LoginsLast7Days             *int       `json:"logins_last_7_days"`
-	LoginsLast30Days            *int       `json:"logins_last_30_days"`
-	LoginFrequency7d            *float64   `json:"login_frequency_7d"`
-	LoginFrequency30d           *float64   `json:"login_frequency_30d"`
-	FreqChange7dVsMean          *float64   `json:"freq_change_7d_vs_mean"`
-	Logins7dOver30dRatio        *float64   `json:"logins_7d_over_30d_ratio"`
-	AvgLoginInterval30d         *float64   `json:"avg_login_interval_30d"`
-	StdLoginInterval30d         *float64   `json:"std_login_interval_30d"`
-	VarLoginInterval30d         *float64   `json:"var_login_interval_30d"`
-	EwmLoginInterval7d          *float64   `json:"ewm_login_interval_7d"`
-	BurstinessLoginInterval     *float64   `json:"burstiness_login_interval"`
-	FanoFactorLoginInterval     *float64   `json:"fano_factor_login_interval"`
-	ZScoreAvgLoginInterval7d    *float64   `json:"zscore_avg_login_interval_7d"`
-}
 
 type Postgres struct {
 	pool *pgxpool.Pool
 }
 
- 
 func NewPostgres() (*Postgres, error) {
 	url := os.Getenv("POSTGRES_DSN")
 	if url == "" {
@@ -50,58 +26,49 @@ func NewPostgres() (*Postgres, error) {
 	return &Postgres{pool: pool}, nil
 }
 
-func (p *Postgres) GetFeatures(ctx context.Context) ([]Features, error) {
-	// Получаем cstDimID из контекста
+func (p *Postgres) GetFeatures(ctx context.Context) (map[string]any, error) {
 	cstDimID, ok := ctx.Value("cst_dim_id").(int64)
 	if !ok {
-		return nil, fmt.Errorf("cst_dim_id not found in context")
+		return nil, fmt.Errorf("cst_dim_id not found in context or has wrong type")
 	}
+
 	transDate, ok := ctx.Value("transdate").(string)
 	if !ok {
-		return nil, fmt.Errorf("transdate not found in context")
+		return nil, fmt.Errorf("transdate not found in context or has wrong type")
 	}
+
 	rows, err := p.pool.Query(ctx, `
 		SELECT *
-		FROM fs.client_behavior_patterns
+		FROM fs.v_txn_ml_features
 		WHERE cst_dim_id = $1 AND transdate = $2
+		LIMIT 1
 	`, cstDimID, transDate)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
 	defer rows.Close()
 
-	var out []Features
-
-	for rows.Next() {
-		var f Features
-		       err := rows.Scan(
-			       &f.TransDate,
-			       &f.CstDimID,
-			       &f.MonthlyOSChanges,
-			       &f.MonthlyPhoneModelChanges,
-			       &f.LastPhoneModelCategorical,
-			       &f.LastOSCategorical,
-			       &f.LoginsLast7Days,
-			       &f.LoginsLast30Days,
-			       &f.LoginFrequency7d,
-			       &f.LoginFrequency30d,
-			       &f.FreqChange7dVsMean,
-			       &f.Logins7dOver30dRatio,
-			       &f.AvgLoginInterval30d,
-			       &f.StdLoginInterval30d,
-			       &f.VarLoginInterval30d,
-			       &f.EwmLoginInterval7d,
-			       &f.BurstinessLoginInterval,
-			       &f.FanoFactorLoginInterval,
-			       &f.ZScoreAvgLoginInterval7d,
-		       )
-		if err != nil {
-			return nil, fmt.Errorf("scan error: %w", err)
-		}
-		out = append(out, f)
+	if !rows.Next() {
+		return nil, fmt.Errorf("no features found for cst_dim_id=%d, transdate=%s", cstDimID, transDate)
 	}
 
-	return out, nil
+	values, err := rows.Values()
+	if err != nil {
+		return nil, fmt.Errorf("rows.Values error: %w", err)
+	}
+
+	fields := rows.FieldDescriptions()
+	if len(fields) != len(values) {
+		return nil, fmt.Errorf("fields and values length mismatch: %d vs %d", len(fields), len(values))
+	}
+
+	result := make(map[string]any, len(values))
+	for i, fd := range fields {
+		colName := string(fd.Name)
+		result[colName] = values[i]
+	}
+
+	return result, nil
 }
 
 func (p *Postgres) Close() {
@@ -109,5 +76,3 @@ func (p *Postgres) Close() {
 		p.pool.Close()
 	}
 }
-
-

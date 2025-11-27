@@ -1,23 +1,14 @@
--- Создаём базу feature_store
 CREATE DATABASE feature_store
     WITH 
     OWNER = feature_user
     ENCODING = 'UTF8'
     TEMPLATE = template0;
 
--- Переключимся на БД
 \connect feature_store;
 
--- Схема
 CREATE SCHEMA IF NOT EXISTS fs AUTHORIZATION feature_user;
 
--- Тест табличка
-CREATE TABLE IF NOT EXISTS fs.healthcheck (
-    id SERIAL PRIMARY KEY,
-    ts TIMESTAMP DEFAULT NOW()
-);
-
--- Создаем таблицу для хранения фичей
+-- dataset 2
 CREATE TABLE fs.client_behavior_patterns (
     transdate                      timestamp without time zone,
     cst_dim_id                     bigint,
@@ -40,7 +31,6 @@ CREATE TABLE fs.client_behavior_patterns (
     zscore_avg_login_interval_7d   double precision
 );
 
--- Индекс на client_behavior_patterns
 CREATE INDEX idx_cbp_cst_dim_id_transdate
     ON fs.client_behavior_patterns (cst_dim_id, transdate);
 
@@ -51,7 +41,7 @@ CREATE INDEX idx_client_behavior_patterns_cst_dim_id
     ON fs.client_behavior_patterns (cst_dim_id);
 
 
--- Таблица для хранения транзакций
+-- txn table
 CREATE TABLE fs.transactions (
     cst_dim_id        bigint,                     -- уникальный идентификатор клиента
     transdate         date,                       -- дата совершенной транзакции
@@ -72,7 +62,7 @@ CREATE INDEX idx_client_transactions_cst_date
     ON fs.transactions (cst_dim_id, transdatetime);
 
 
--- Загрузим данные
+-- prep data load
 COPY fs.transactions
 FROM '/var/lib/postgresql/dump/transactions.csv'
 CSV HEADER;
@@ -80,3 +70,49 @@ CSV HEADER;
 COPY fs.client_behavior_patterns
 FROM '/var/lib/postgresql/dump/features.csv'
 CSV HEADER;
+
+
+-- stats based on datasets
+CREATE TABLE IF NOT EXISTS fs.ml_global_stats (
+    model_name        text PRIMARY KEY,   -- например 'fraud_detector_v3'
+    amount_q99        double precision,
+    amount_high_thresh double precision,
+    amount_mean       double precision,
+    amount_std        double precision,
+    burst_q90         double precision,
+    cust_txn_q75      double precision,
+    cust_txn_q90      double precision,
+    best_thr		  double precision
+);
+
+INSERT INTO fs.ml_global_stats (
+    model_name,
+    amount_q99,
+    amount_mean,
+    amount_std,
+    amount_high_thresh,
+    burst_q90,
+    cust_txn_q75,
+    cust_txn_q90,
+    best_thr
+)
+VALUES (
+    'fraud_detector',                 
+    500000.0,                         
+    42652.813166046086,              
+    82160.38911600676,              
+    110000.0,                      
+    0.4363069421548723,             
+    47.0,                          
+    96.10000000000002,           
+    0.0                               
+)
+ON CONFLICT (model_name) DO UPDATE SET
+    amount_q99         = EXCLUDED.amount_q99,
+    amount_mean        = EXCLUDED.amount_mean,
+    amount_std         = EXCLUDED.amount_std,
+    amount_high_thresh = EXCLUDED.amount_high_thresh,
+    burst_q90          = EXCLUDED.burst_q90,
+    cust_txn_q75       = EXCLUDED.cust_txn_q75,
+    cust_txn_q90       = EXCLUDED.cust_txn_q90,
+    best_thr           = EXCLUDED.best_thr;

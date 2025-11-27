@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
-	"log"
 
-	"feature_service/internal/repository"
-	"feature_service/internal/http"
+	handlers "feature_service/internal/http"
+	postgres "feature_service/internal/repository"
 
 	"github.com/gin-gonic/gin"
 )

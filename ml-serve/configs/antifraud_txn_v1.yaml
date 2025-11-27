@@ -1,0 +1,117 @@
+id: "antifraud_txn_v1"
+enabled: true
+
+traffic:
+  stickiness: "cst_txn_id"      
+
+models:
+  - name: "fraud_detector_s3"
+    role: "decision"             
+    weight: 60                   
+    provider: "mlflow"
+    registry_model_name: "fraud_detector_s3"
+    registry_stage: "Production"
+    version: 8
+    feature_cols:
+      - amount
+      - docno
+      - monthly_os_changes
+      - monthly_phone_model_changes
+      - last_phone_model_categorical
+      - last_os_categorical
+      - logins_last_7_days
+      - logins_last_30_days
+      - login_frequency_7d
+      - login_frequency_30d
+      - freq_change_7d_vs_mean
+      - logins_7d_over_30d_ratio
+      - avg_login_interval_30d
+      - std_login_interval_30d
+      - var_login_interval_30d
+      - ewm_login_interval_7d
+      - burstiness_login_interval
+      - fano_factor_login_interval
+      - zscore_avg_login_interval_7d
+      - hour
+      - weekday
+      - is_night
+      - is_evening
+      - is_morning
+      - is_weekend
+      - amount_clipped
+      - amount_log
+      - amount_bin
+      - is_high_amount
+      - amount_z_overall
+      - logins_7d_per_day
+      - logins_30d_per_day
+      - amount_per_login_30d
+      - freq_change_7d_vs_mean_abs
+      - login_freq_ratio_7_30
+      - logins_ratio_7_30
+      - interval_cv_30d
+      - interval_fano_30d
+      - ewm_vs_avg_interval
+      - burstiness_abs
+      - zscore_login_abs
+      - amountlog_x_freqchange_abs
+      - cust_amount_mean
+      - cust_amount_std
+      - cust_amount_max
+      - cust_txn_count
+      - amount_vs_cust_mean
+      - amount_vs_cust_max
+      - cust_is_heavy_q75
+      - cust_is_heavy_q90
+      - is_high_burst
+      - night_and_high_amount
+      - weekend_and_high_amount
+      - night_and_high_burst
+      - weekend_and_high_burst
+      - amount_x_burst
+      - amount_x_fano
+      - amount_x_login_freq7
+      - amount_x_login_freq30
+      - amount_x_logins_7d
+      - amount_x_logins_30d
+      - burst_x_logins_7d
+      - burst_x_logins_30d
+      - high_amount_and_no_logins30
+      - night_x_amount_log
+      - weekend_x_amount_log
+      - evening_x_amount_log
+      - cust_heavy_q75_x_amount
+      - cust_heavy_q75_x_night
+      - cust_heavy_q75_x_burst
+      - atypical_amount_vs_mean
+      - atypical_amount_vs_max
+      - high_amount_z_flag
+      - high_burst_and_high_amount
+      - login_spiky_ratio_max
+      - iforest_score
+      - lof_score
+
+    cat_feature_names:
+      - last_phone_model_categorical
+      - last_os_categorical
+      - amount_bin
+
+
+timeouts:
+  scoring_ms: 150
+  total_request_ms: 300
+  retries:
+    max_retries: 1
+    backoff_ms: 20
+
+sla:
+  max_error_rate: 0.01
+  max_p95_latency_ms: 250
+
+logging:
+  logs_enabled: true
+  log_features: true
+  log_predictions: true
+  monitoring_enabled: true
+  sampling_rate: 0.1
+
