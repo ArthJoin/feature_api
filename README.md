@@ -53,7 +53,7 @@ graph LR
 
 ---
 
-## Prject Structure
+## Структура проекта
 
 ```
 feature_api/
@@ -132,7 +132,7 @@ feature_api/
 
 ---
 
-## How Model Scoring Works
+## Как работает скоринг модели
 
 1. Camunda вызывает Feature API → получает агрегированные признаки.
 2. Camunda передаёт признаки в ML-Serve.
@@ -141,7 +141,7 @@ feature_api/
 5. Результат возвращается в Camunda (>0.000 <1.000).
 ---
 
-## ML Model Hot-Swap (Zero Downtime)
+## Hot-Swap Модели (Zero Downtime)
 
 ML Serve сервис не хранит модель локально → он перераспрашивает MLFlow по:
 
@@ -190,7 +190,7 @@ configs/
 
 ---
 
-## Running Locally
+## Запуск локально
 
 ```bash
 docker-compose up -d
