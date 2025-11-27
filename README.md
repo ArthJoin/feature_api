@@ -20,21 +20,21 @@
 ## Архитектура
 
 ```mermaid
-flowchart LR
-    U[Client App] --> GW[API Gateway]
+graph LR
+    U["Client App"] --> GW["API Gateway"]
 
-    subgraph Feature Layer
-        FS[Feature Service (Go)] --> PG[(PostgreSQL)]
+    subgraph "Feature Layer"
+        FS["Feature Service (Go)"] --> PG[("PostgreSQL")]
     end
 
-    subgraph ML Layer
-        INF[ML Inference (FastAPI)]
-        MLFlow[MLFlow Registry]
-        MinIO[(MinIO Object Store)]
+    subgraph "ML Layer"
+        INF["ML Inference (FastAPI)"]
+        MLFlow["MLFlow Registry"]
+        MinIO[("MinIO Object Store")]
     end
 
-    subgraph Orchestration
-        Camunda[Camunda BPM]
+    subgraph "Orchestration"
+        Camunda["Camunda BPM"]
     end
 
     GW --> Camunda
@@ -46,6 +46,7 @@ flowchart LR
 
     MLFlow -->|Model Artifacts| INF
     PG --> FS
+```
 
 ---
 
