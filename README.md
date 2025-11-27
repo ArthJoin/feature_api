@@ -46,7 +46,6 @@ flowchart LR
 
     MLFlow -->|Model Artifacts| INF
     PG --> FS
-```
 
 ---
 
