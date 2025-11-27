@@ -52,11 +52,12 @@ mlflow/*
 !mlflow/
 !mlflow/*.py
 !mlflow/pg_data/
+!mlflow/m-a1c1873435df4f3986306afc75f6530f
+
 
 
 # CatBoost models
 *.cbm
-*.cb
 *.bin
 
 # SHAP
@@ -97,7 +98,6 @@ minio/buckets/
 # CI/CD
 .gitlab-runner/config/
 .gitlab-artifacts/
-artifacts/
 coverage/
 *.coverage
 
