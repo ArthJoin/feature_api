@@ -12,9 +12,6 @@ from services.minio import MinioService
 from models.config import AntifraudConfig
 
 
-
-
-
 async def refresh_config_loop(app: FastAPI) -> None:
     while True:
         try:

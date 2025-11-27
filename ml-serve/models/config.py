@@ -70,7 +70,6 @@ class ModelVariant(BaseModel):
         missing = set(self.cat_feature_names) - set(self.feature_cols)
         if missing:
             raise ValueError(
-                f"cat_feature_names must be subset of feature_cols, "
                 f"missing in feature_cols: {sorted(missing)}"
             )
         return self

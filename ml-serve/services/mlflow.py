@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Dict, Any, List
 
 import mlflow
-import mlflow.pyfunc
+#import mlflow.pyfunc
+from catboost import CatBoostClassifier
+import mlflow.catboost 
 import pandas as pd
 
 from core.config import settings
@@ -18,7 +20,7 @@ class MLflowService:
 
         mlflow.set_tracking_uri(self._tracking_uri)
 
-        self._models: Dict[str, mlflow.pyfunc.PyFuncModel] = {}
+        self._models: Dict[str, CatBoostClassifier] = {}
         self._load_all_models()
 
     @staticmethod
@@ -28,7 +30,7 @@ class MLflowService:
     def _load_all_models(self) -> None:
         for variant in self._config.models:
             uri = self._build_model_uri(variant)
-            model = mlflow.pyfunc.load_model(uri)
+            model = mlflow.catboost.load_model(uri)
             if model is None:
                 raise RuntimeError(f"mlflow.pyfunc.load_model returned None for URI={uri}")
             self._models[variant.name] = model

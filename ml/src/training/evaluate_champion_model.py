@@ -18,8 +18,6 @@ import shap
 
 from catboost import CatBoostClassifier, Pool
 
-# ====== ВАЖНО: поправь имя модуля, если нужно ======
-# from fraud_utils import (
 from fraud_utils_weighted import (
     compute_feature_stats,
     build_features,
@@ -27,9 +25,7 @@ from fraud_utils_weighted import (
     prepare_matrices,
 )
 
-# ==========================
-# Константы / пути
-# ==========================
+
 DATA_PATH = "merged_dataset_final.csv"
 TARGET_COL = "target"
 
@@ -42,13 +38,7 @@ MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 OUTPUT_DIR = "figures_eval"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# beta для F2
 BETA = 2.0
-
-
-# ==========================
-# Вспомогательные функции
-# ==========================
 
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
@@ -68,10 +58,6 @@ def find_best_threshold_fbeta(y_true, y_proba, beta=BETA):
 
 
 def plot_confusion_matrix(cm, classes, normalize, title, filename):
-    """
-    cm: np.array 2x2
-    classes: ['Non-fraud', 'Fraud']
-    """
     if normalize:
         cm_to_show = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
     else:
@@ -152,10 +138,6 @@ def evaluate_and_plot(
     prefix: str,
     beta: float = BETA,
 ):
-    """
-    Считает метрики, подбирает порог по F-beta, печатает summary
-    и сохраняет confusion matrix (обычную и нормированную) + ROC / PR графики.
-    """
     best_thr, best_fbeta = find_best_threshold_fbeta(y_true, y_proba, beta=beta)
     y_pred = (y_proba >= best_thr).astype(int)
 
@@ -180,15 +162,13 @@ def evaluate_and_plot(
     print(f"ROC-AUC:    {roc_auc:7.4f}")
     print(f"F{beta:.1f}-score: {best_fbeta:7.4f}\n")
 
-    print("Classification report:")
+    print(" report:")
     print(classification_report(y_true, y_pred, digits=4))
 
-    # Сохраняем ROC / PR
     roc_path, pr_path = plot_roc_pr(y_true, y_proba, prefix=prefix)
-    print(f"Saved ROC figure to: {roc_path}")
-    print(f"Saved PR figure to:  {pr_path}")
+    print(f"ROC: {roc_path}")
+    print(f"PR:  {pr_path}")
 
-    # Сохраняем confusion matrix
     cm_path = os.path.join(OUTPUT_DIR, f"{prefix}_cm.png")
     cm_norm_path = os.path.join(OUTPUT_DIR, f"{prefix}_cm_norm.png")
     plot_confusion_matrix(
@@ -205,8 +185,8 @@ def evaluate_and_plot(
         title=f"{scenario_name} – Confusion matrix (normalized)",
         filename=cm_norm_path,
     )
-    print(f"Saved confusion matrix to:       {cm_path}")
-    print(f"Saved normalized confusion matrix: {cm_norm_path}")
+    print(f"confusion matrix:       {cm_path}")
+    print(f"normalized confusion matrix: {cm_norm_path}")
 
     metrics = {
         "model": model_name,
@@ -235,13 +215,9 @@ def make_stress_scenario_amount_x3(df_test_raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def make_stress_scenario_all_night(df_test_raw: pd.DataFrame) -> pd.DataFrame:
-    """
-    Переводим все транзакции в ночной диапазон (условно ставим час=2).
-    """
     df_mod = df_test_raw.copy()
     if "transdatetime" in df_mod.columns:
         dt = pd.to_datetime(df_mod["transdatetime"], errors="coerce")
-        # заменим только час, остальные поля не трогаем
         dt = dt.mask(dt.notna(), dt.dt.normalize() + pd.to_timedelta(2, unit="h"))
         df_mod["transdatetime"] = dt.dt.strftime("%Y-%m-%d %H:%M:%S")
     return df_mod
@@ -266,21 +242,8 @@ def compute_shap_for_catboost(
     prefix: str = "cb_balanced",
     max_samples: int = 1000,
 ):
-    """
-    Считает SHAP для CatBoost-модели и сохраняет:
-      - bar chart (top-k по |SHAP|)
-      - beeswarm plot
-
-    model            - CatBoostClassifier (champion)
-    X                - фичи (DataFrame) на которых считаем SHAP (например X_test_an)
-    cat_features_idx - индексы категориальных признаков (как при обучении)
-    out_dir          - папка для сохранения картинок (например 'figures_eval')
-    prefix           - префикс в названии файлов
-    max_samples      - ограничение по количеству объектов для SHAP
-    """
     os.makedirs(out_dir, exist_ok=True)
 
-    # ----- сэмплим, чтобы не упасть по времени / памяти -----
     if len(X) > max_samples:
         X_sample = X.sample(max_samples, random_state=42)
     else:
@@ -288,27 +251,20 @@ def compute_shap_for_catboost(
 
     feature_names = list(X_sample.columns)
 
-    # ----- строим CatBoost Pool (НОРМАЛЬНЫЙ API, без приватного _build_train_pool) -----
     pool = Pool(
         X_sample,
         cat_features=cat_features_idx if cat_features_idx else None,
     )
 
-    # ----- SHAP через shap.TreeExplainer -----
-    # Для CatBoost TreeExplainer умеет работать напрямую с моделью
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(pool)
 
-    # Для бинарной классификации shap_values может быть:
-    #  - list из [shap_values_class0, shap_values_class1]  ИЛИ
-    #  - np.array shape (n_samples, n_features)
+
     if isinstance(shap_values, list):
-        # Берём вклад "положительного" класса (1)
         shap_for_plot = shap_values[1]
     else:
         shap_for_plot = shap_values
 
-    # ----- Bar plot: top-25 признаков по среднему |SHAP| -----
     mean_abs = np.mean(np.abs(shap_for_plot), axis=0)
     idx_sorted = np.argsort(mean_abs)[::-1]  # от большего к меньшему
     top_k = 25
@@ -319,15 +275,13 @@ def compute_shap_for_catboost(
         [feature_names[i] for i in idx_top][::-1],
         mean_abs[idx_top][::-1],
     )
-    plt.title("CatBoost Balanced — SHAP feature importance (top 25)")
-    plt.xlabel("Mean |SHAP value|")
+    plt.title("SHAP feature importance")
     plt.tight_layout()
 
     bar_path = os.path.join(out_dir, f"{prefix}_shap_bar.png")
     plt.savefig(bar_path, dpi=200)
     plt.close()
 
-    # ----- Beeswarm plot -----
     plt.figure(figsize=(12, 6))
     shap.summary_plot(
         shap_for_plot,
@@ -341,21 +295,10 @@ def compute_shap_for_catboost(
     plt.savefig(beeswarm_path, dpi=200)
     plt.close()
 
-    print(f"Saved CatBoost SHAP bar to:      {bar_path}")
-    print(f"Saved CatBoost SHAP beeswarm to: {beeswarm_path}")
-
-
-
-# ==========================
-# main()
-# ==========================
 
 def main():
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-    print(f">>> Using MLFLOW_TRACKING_URI: {MLFLOW_TRACKING_URI}")
-    print(f">>> Using MODEL_URI: {MODEL_URI}")
 
-    print(">>> Загружаю датасет...")
     df_raw = pd.read_csv(DATA_PATH, sep=";", encoding="cp1251", low_memory=False)
     df_raw[TARGET_COL] = df_raw[TARGET_COL].astype(int)
 
@@ -364,7 +307,6 @@ def main():
     print("\nРаспределение таргета:")
     print(df_raw[TARGET_COL].value_counts(normalize=True))
 
-    # ===== Train / test split (как раньше) =====
     from sklearn.model_selection import train_test_split
 
     indices = df_raw.index.values
