@@ -12,7 +12,6 @@ __pycache__/
 .venv/
 venv/
 .env
-.env.*
 *.env
 
 # Jupyter
@@ -49,6 +48,11 @@ mlflow/
 mlflow/pg_data/*
 mlruns/
 **/mlruns/
+mlflow/*
+!docker/mlflow/Dockerfile
+!mlflow/
+!mlflow/*.py
+
 
 # CatBoost models
 *.cbm
@@ -63,7 +67,8 @@ figures_eval/
 *.html
 
 # Data samples
-data/
+data/*
+!data/
 data_raw/
 etl/samples/*
 
