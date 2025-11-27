@@ -57,7 +57,7 @@ feature_api/
 │
 ├── camunda/                    # BPMN diagrams + configs
 │
-├── docker/                    # Dockerfiles
+├── docker/                     # Dockerfiles
 │
 ├── etl/                        # Feature engineering pipelines
 │   ├── convert_raw_to_csv.py
@@ -67,6 +67,11 @@ feature_api/
 │   ├── main.go
 │   ├── internal/http/
 │   └── internal/repository/
+│
+├── ml/                         # Ml training
+│   ├── data/
+│   ├── processed/
+│   └── src/
 │
 ├── ml-serve/                   # FastAPI ML Service
 │   ├── api/v1/
@@ -82,7 +87,7 @@ feature_api/
 │   ├── pg_data/
 │   └── python_etl_files
 │
-├── postgres/                    # PG as mini DWH layer
+├── postgres/                   # PG as mini DWH layer
 │   ├── data/
 │   ├── dump/
 │   └── init/
