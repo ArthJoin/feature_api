@@ -46,7 +46,7 @@ flowchart LR
 
     MLFlow -->|Model Artifacts| INF
     PG --> FS
-````
+```
 
 ---
 
@@ -264,6 +264,3 @@ Response:
 * Automated retraining pipeline
 * Drift detection (data & concept drift)
 * Full audit pipeline (граф связей, lineage, аудит)
-
-
-```
