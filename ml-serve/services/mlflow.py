@@ -44,7 +44,7 @@ class MLflowService:
         else:
             df = pd.DataFrame(features)
 
-        return model.predict(df)
+        return model.predict_proba(df)[:, 1]
     
     def reorder(self, features_list, features_cols) -> List[dict]:
         reordered: List[dict] = []
