@@ -1,5 +1,5 @@
 # Feature API — AntiFraud ML Scoring Platform  
-**ETL → Feature Store → Go Service → MLFlow Registry → FastAPI → MinIO → Camunda BPM**.
+**Camunda BPM → ETL → Feature Store → Go Service → Feature List → FastAPI → MLFlow Registry -> MinIO**.
 
 Проект реализован в формате production-архитектуры, заточен под масштабирование и замену ML-моделей без даунтайма.
 
