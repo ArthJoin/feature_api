@@ -3,11 +3,11 @@ services:
     image: postgres:16
     container_name: feature-pg
     environment:
-      POSTGRES_DB: features
-      POSTGRES_USER: feature_user
-      POSTGRES_PASSWORD: feature_password
+      POSTGRES_DB: ${FEATURE_PG_DB}
+      POSTGRES_USER: ${FEATURE_PG_USER}
+      POSTGRES_PASSWORD: ${FEATURE_PG_PASSWORD}
     ports:
-      - "5433:5432"
+      - "${FEATURE_PG_HOST_PORT:-5433}:5432"
     volumes:
       - ./postgres/data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d
@@ -23,10 +23,10 @@ services:
     depends_on:
       - postgres
     environment:
-      POSTGRES_DSN: postgres://feature_user:feature_password@feature-pg:5432/feature_store?sslmode=disable
-      PORT: "9000"
+      POSTGRES_DSN: ${FEATURE_PG_DSN}
+      PORT: "${FEATURE_API_PORT}"
     ports:
-      - "9000:9000"
+      - "${FEATURE_API_PORT}:${FEATURE_API_PORT}"
     networks:
       - feature-net
 
@@ -34,9 +34,9 @@ services:
     image: camunda/camunda-bpm-platform:latest
     container_name: camunda
     ports:
-      - "8080:8080"
+      - "${CAMUNDA_PORT:-8080}:8080"
     environment:
-      - CAMUNDA_BPM_HISTORY_LEVEL=full
+      CAMUNDA_BPM_HISTORY_LEVEL: ${CAMUNDA_BPM_HISTORY_LEVEL:-full}
     depends_on:
       - api
     volumes:
@@ -49,7 +49,7 @@ services:
       context: .
       dockerfile: docker/ml-serve/Dockerfile 
     ports:
-      - "81:81"
+      - "${ML_API_PORT:-81}:81"
     env_file:
       - .env
     networks:
@@ -77,30 +77,30 @@ services:
     image: postgres:16
     container_name: mlflow-db
     environment:
-      POSTGRES_USER: mlflow
-      POSTGRES_PASSWORD: mlflow_pass
-      POSTGRES_DB: mlflow
+      POSTGRES_USER: ${MLFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${MLFLOW_DB_PASSWORD}
+      POSTGRES_DB: ${MLFLOW_DB_NAME}
     volumes:
       - ./mlflow/pg_data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"
+      - "${MLFLOW_DB_HOST_PORT:-5434}:5432"
     networks:
       - feature-net
 
   minio:
     image: minio/minio
-    command: server /data --console-address ":45369"
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
     environment:
-      MINIO_ROOT_USER: mlflow_access
-      MINIO_ROOT_PASSWORD: mlflow_secret
-      MINIO_BUCKETS: mlflow
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKETS: ${MINIO_BUCKETS}
     ports:
-      - "9001:9000"
-      - "45369:45369"
+      - "${MINIO_API_HOST_PORT:-9001}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-45369}:${MINIO_CONSOLE_PORT}"
     networks:
       - feature-net
     # mc version enable local/mlflow
-    # mc alias set local http://minio:9001 mlflow_access mlflow_secret
+    # mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}
 
   mlflow:
     build:
@@ -110,24 +110,16 @@ services:
       - mlflow-db
       - minio
     environment:
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: mlflow_access
-      AWS_SECRET_ACCESS_KEY: mlflow_secret
-      MLFLOW_SERVER_ALLOWED_HOSTS: "*"
-      MLFLOW_ALLOWED_HOSTS: "*"
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: ${MLFLOW_S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${MLFLOW_S3_SECRET_KEY}
+      MLFLOW_SERVER_ALLOWED_HOSTS: ${MLFLOW_ALLOWED_HOSTS:-*}
+      MLFLOW_ALLOWED_HOSTS: ${MLFLOW_ALLOWED_HOSTS:-*}
       MLFLOW_ENABLE_DNS_REBIND_PROTECTION: "false"
     command: >
       mlflow server
         --serve-artifacts
-        --default-artifact-root s3://mlflow/
+        --default-artifact-root s3://${MLFLOW_S3_BUCKET}/
         --host 0.0.0.0
-        --port 5000
-        --backend-store-uri postgresql+psycopg2://mlflow:mlflow_pass@mlflow-db:5432/mlflow
-    ports:
-      - "5000:5000"
-    networks:
-      - feature-net
-
-networks:
-  feature-net:
-    driver: bridge
+        --port ${MLFLOW_PORT}
+        --backend-store-uri postgresql+psycopg2://${MLFLOW_DB_USER}:${MLFLOW_DB_PASSWORD}@mlflow-db:5432/${MLFLOW_DB_NAME}
