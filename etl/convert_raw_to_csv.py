@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import re
 
-INPUT_FILE  = "./features_raw.xlsx"
+INPUT_FILE  = ".samples/features_raw.xlsx"
 OUTPUT_FILE = "features.csv"
 
 

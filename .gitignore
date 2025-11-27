@@ -1,4 +1,114 @@
+# OS
 .DS_Store
-.idea
-__pycache__
+
+# Python env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.so
+
+.venv/
+venv/
 .env
+.env.*
+*.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Py
+build/
+dist/
+*.spec
+
+
+# Go modules
+feature-service/go.sum
+feature-service/go.mod
+feature-service/bin/
+*.exe
+*.out
+
+
+# IDE 
+.idea/
+.vscode/
+*.iml
+
+
+# Docker
+docker-data/
+docker-compose.override.yml
+*.tar
+*.log
+ 
+# Model dumps
+mlflow/
+mlflow/pg_data/*
+mlruns/
+**/mlruns/
+
+# CatBoost models
+*.cbm
+*.cb
+*.bin
+
+# SHAP
+figures_eval/
+*.png
+*.svg
+*.pdf
+*.html
+
+# Data samples
+data/
+data_raw/
+etl/samples/*
+
+# Database
+postgres/data/*
+postgres/pg_data/*
+*.db
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.json
+service_account.json
+minio_credentials.json
+config/local_*.yaml
+
+
+# S3
+minio/
+minio-data/
+minio/buckets/
+**/bucket_cache/
+
+# CI/CD
+.gitlab-runner/config/
+.gitlab-artifacts/
+artifacts/
+coverage/
+*.coverage
+
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.tgz
+
+
+# Misc
+tmp/
+temp/
+cache/
+*.bak
+*.swp
+*.swo
